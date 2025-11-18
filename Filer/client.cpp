@@ -22,7 +22,7 @@ int main()
 		std::getline(std::cin, g);
 
 		std::cout << "\n";
-		std::cout << "msg: ";
+		std::cout << "msgs: ";
 		std::string m;
 		std::getline(std::cin, m);
 
