@@ -2,6 +2,14 @@
 
 #include "net_common.hpp"
 
+struct transfer_state
+{
+	std::ofstream out;
+	uint64_t total_size = 0;
+	uint64_t received = 0;
+	std::string tmp_path;
+};
+
 class file
 {
 public:

@@ -10,12 +10,21 @@ enum class message_type : uint16_t
 };
 
 #pragma pack(push, 1)
+struct file_chunk_header
+{
+	uint64_t total_size;
+	uint64_t offset;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
 struct message_header					// 48 bytes // 42 bytes
 {
 	uint64_t body_size;					// 8 bytes
 	boost::uuids::uuid sender_guid;		// 16 bytes
 	boost::uuids::uuid recipient_guid;	// 16 bytes
 	message_type msg_type;				// 2 bytes
+	char filename[255];
 };
 #pragma pack(pop)
 
@@ -89,12 +98,23 @@ public:
 	void encode_header(std::vector<uint8_t>& msg, 
 		boost::uuids::uuid sender_guid, 
 		boost::uuids::uuid recipient_guid, 
-		message_type msg_type)
+		message_type msg_type,
+		const std::string& filename = "")
 	{
 		header_.body_size = msg.size();
 		header_.sender_guid = sender_guid;
 		header_.recipient_guid = recipient_guid;
 		header_.msg_type = msg_type;
+
+		if (msg_type == message_type::text)
+		{
+
+		}
+		else if (msg_type == message_type::file)
+		{
+			std::strncpy(header_.filename, filename.c_str(), sizeof(header_.filename) - 1);
+			header_.filename[sizeof(header_.filename) - 1] = '\0';
+		}
 
 		data_.resize(sizeof(message_header) + header_.body_size);
 		std::memcpy(data_.data(), &header_, sizeof(header_));

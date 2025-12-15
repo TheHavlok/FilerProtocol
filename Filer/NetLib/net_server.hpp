@@ -10,15 +10,15 @@ class session;
 class connections
 {
 public:
-	void connect(const boost::uuids::uuid& guid, std::shared_ptr<session> s);
+	inline void connect(const boost::uuids::uuid& guid, std::shared_ptr<session> s);
 
-	void is_connected();
+	inline void is_connected();
 
-	void send(const message& msg);
+	inline void send(const message& msg);
 
-	std::vector<std::shared_ptr<session>> get_session(const boost::uuids::uuid& guid) const;
+	inline std::vector<std::shared_ptr<session>> get_session(const boost::uuids::uuid& guid) const;
 
-	void close(const boost::uuids::uuid& guid, std::shared_ptr<session> s);
+	inline void close(const boost::uuids::uuid& guid, std::shared_ptr<session> s);
 
 private:
 	std::unordered_map<boost::uuids::uuid, std::vector<std::shared_ptr<session>>> map_;
@@ -28,20 +28,20 @@ private:
 class session : public std::enable_shared_from_this<session>
 {
 public:
-	session(boost::asio::ip::tcp::socket socket, connections& connection);
+	inline session(boost::asio::ip::tcp::socket socket, connections& connection);
 
-	void start();
+	inline void start();
 
-	void deliver(const message& msg);
+	inline void deliver(const message& msg);
 
 private:
-	void auth();
+	inline void auth();
 
-	void do_read_header();
+	inline void do_read_header();
 
-	void do_read_body();
+	inline void do_read_body();
 
-	void do_write();
+	inline void do_write();
 
 private:
 	boost::asio::ip::tcp::socket socket_;
@@ -54,12 +54,12 @@ private:
 	std::array<char, 36> auth_;
 };
 
-void connections::connect(const boost::uuids::uuid& guid, std::shared_ptr<session> s)
+inline void connections::connect(const boost::uuids::uuid& guid, std::shared_ptr<session> s)
 {
 	map_[guid].push_back(s);
 }
 
-void connections::send(const message& msg)
+inline void connections::send(const message& msg)
 {
 	auto recipient = msg.header_.recipient_guid;
 	auto dests = connections::get_session(recipient);
@@ -68,7 +68,7 @@ void connections::send(const message& msg)
 		dest->deliver(msg);
 }
 
-std::vector<std::shared_ptr<session>> connections::get_session(const boost::uuids::uuid& guid) const
+inline std::vector<std::shared_ptr<session>> connections::get_session(const boost::uuids::uuid& guid) const
 {
 	auto item = map_.find(guid);
 	if (item != map_.end())
@@ -77,7 +77,7 @@ std::vector<std::shared_ptr<session>> connections::get_session(const boost::uuid
 		return {};
 }
 
-void connections::close(const boost::uuids::uuid& guid, std::shared_ptr<session> s)
+inline void connections::close(const boost::uuids::uuid& guid, std::shared_ptr<session> s)
 {
 	auto item = map_.find(guid);
 	if (item != map_.end())
@@ -91,19 +91,19 @@ void connections::close(const boost::uuids::uuid& guid, std::shared_ptr<session>
 	}
 }
 
-session::session(boost::asio::ip::tcp::socket socket, connections& connection)
+inline session::session(boost::asio::ip::tcp::socket socket, connections& connection)
 	: socket_(std::move(socket)), connection_(connection)
 {
 }
 
-void session::start()
+inline void session::start()
 {
 	//user_connection_.connect();
 	//do_read_header();
 	auth();
 }
 
-void session::auth()
+inline void session::auth()
 {
 	auto self(shared_from_this());
 	boost::asio::async_read(socket_, boost::asio::buffer(auth_),
@@ -120,7 +120,7 @@ void session::auth()
 		});
 }
 
-void session::deliver(const message& msg)
+inline void session::deliver(const message& msg)
 {
 	bool write_in_progress = !write_msgs_.empty();
 	write_msgs_.push_back(msg);
@@ -128,7 +128,7 @@ void session::deliver(const message& msg)
 		do_write();
 }
 
-void session::do_read_header()
+inline void session::do_read_header()
 {
 	auto self(shared_from_this());
 	boost::asio::async_read(socket_, boost::asio::buffer(read_msg_.data(), sizeof(message_header)),
@@ -149,7 +149,7 @@ void session::do_read_header()
 		});
 }
 
-void session::do_read_body()
+inline void session::do_read_body()
 {
 	auto self(shared_from_this());
 	boost::asio::async_read(socket_, boost::asio::buffer(read_msg_.body(), read_msg_.body_size()),
@@ -168,7 +168,7 @@ void session::do_read_body()
 		});
 }
 
-void session::do_write()
+inline void session::do_write()
 {
 	auto self(shared_from_this());
 	boost::asio::async_write(socket_, boost::asio::buffer(write_msgs_.front().data(), write_msgs_.front().size()),
