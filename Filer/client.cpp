@@ -117,31 +117,26 @@ int main()
     {
         boost::asio::io_context io;
 
-        // ВАЖНО: один сокет на весь жизненный цикл
         udp::socket socket(io, udp::endpoint(udp::v4(), 0));
 
         // Адрес rendezvous-сервера
         udp::endpoint server_endpoint(
-            boost::asio::ip::make_address("127.0.0.1"), // IP сервера
-            50000                                     // порт сервера
+            boost::asio::ip::make_address("5.144.176.105"), 50000
         );
 
-        // 1. Регистрация на сервере
+        // Регистрация на сервере
         std::string hello = "hello";
         socket.send_to(boost::asio::buffer(hello), server_endpoint);
-
         std::cout << "Registered on server" << std::endl;
 
-        // 2. Получаем адрес peer'а
+        // Получаем адрес peer'а
         char buffer[1024];
         udp::endpoint from;
-        size_t len = socket.receive_from(
-            boost::asio::buffer(buffer), from);
+        size_t len = socket.receive_from(boost::asio::buffer(buffer), from);
 
         std::string peer_info(buffer, len);
         std::cout << "Peer info: " << peer_info << std::endl;
 
-        // Разбор IP:PORT
         auto pos = peer_info.find(':');
         if (pos == std::string::npos)
         {
@@ -150,42 +145,57 @@ int main()
         }
 
         std::string peer_ip = peer_info.substr(0, pos);
-        unsigned short peer_port =
-            static_cast<unsigned short>(std::stoi(peer_info.substr(pos + 1)));
-
-        udp::endpoint peer_endpoint(
-            boost::asio::ip::make_address(peer_ip),
-            peer_port
-        );
-
-        std::cout << "Start hole punching to "
-            << peer_ip << ":" << peer_port << std::endl;
-
-        // 3. Hole punching
-        for (int i = 0; i < 10; ++i)
-        {
-            socket.send_to(
-                boost::asio::buffer("ping", 4),
-                peer_endpoint
+        unsigned short peer_port = static_cast<unsigned short>(
+            std::stoi(peer_info.substr(pos + 1))
             );
-        }
 
-        // 4. Приём сообщений от peer'а
-        for (;;)
-        {
-            char data[1024];
-            udp::endpoint sender;
-            size_t length = socket.receive_from(
-                boost::asio::buffer(data), sender);
+        udp::endpoint peer_endpoint(boost::asio::ip::make_address(peer_ip), peer_port);
+        std::cout << "Start hole punching to " << peer_ip << ":" << peer_port << std::endl;
 
-            std::cout << "Received from "
-                << sender.address().to_string()
-                << ":" << sender.port()
-                << " -> ";
+        // Поток для получения сообщений
+        std::thread receiver([&socket]() {
+            for (;;)
+            {
+                char data[1024];
+                udp::endpoint sender;
+                try {
+                    size_t length = socket.receive_from(boost::asio::buffer(data), sender);
+                    std::cout << "\n[From " << sender.address().to_string()
+                        << ":" << sender.port() << "] ";
+                    std::cout.write(data, length);
+                    std::cout << std::endl << "> " << std::flush;
+                }
+                catch (std::exception& e) {
+                    std::cerr << "Receive error: " << e.what() << std::endl;
+                }
+            }
+            });
 
-            std::cout.write(data, length);
-            std::cout << std::endl;
-        }
+        // Поток для отправки сообщений
+        std::thread sender_thread([&socket, &peer_endpoint]() {
+            for (;;)
+            {
+                std::cout << "> " << std::flush;
+                std::string msg;
+                std::getline(std::cin, msg);
+                if (msg.empty()) continue;
+                socket.send_to(boost::asio::buffer(msg), peer_endpoint);
+            }
+            });
+
+        // Поток для периодического "удержания NAT" (keep-alive)
+        std::thread keep_alive([&socket, &peer_endpoint]() {
+            while (true)
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+                std::string ping = "ping";
+                socket.send_to(boost::asio::buffer(ping), peer_endpoint);
+            }
+            });
+
+        receiver.join();
+        sender_thread.join();
+        keep_alive.join();
     }
     catch (std::exception& e)
     {
