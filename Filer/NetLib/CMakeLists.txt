@@ -38,7 +38,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"
     set(BOOST_INCLUDEDIR "${BOOST_ROOT}/include")
     set(BOOST_LIBRARYDIR "${BOOST_ROOT}/lib")
 
-    find_package(Boost 1.89 REQUIRED COMPONENTS system thread)
+    find_package(Boost 1.89 REQUIRED COMPONENTS)
 
     add_library(NetLib INTERFACE)
 
@@ -47,7 +47,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"
         ${Boost_INCLUDE_DIRS}
     )
 
-    target_link_libraries(NetLib INTERFACE Boost::system Boost::thread Boost::headers)
+    target_link_libraries(NetLib INTERFACE Boost::headers)
 endif()
 
 # --- добавляем заголовки NetLib ---
