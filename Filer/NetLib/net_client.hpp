@@ -5,6 +5,7 @@
 #include "net_queue.hpp"
 #include "net_file.hpp"
 #include "net_utils.hpp"
+#include "net_logger.hpp"
 
 using ProgressCallBack = std::function<void(uint64_t sent, uint64_t total)>;
 using FinishedCallBack = std::function<void()>;
@@ -14,8 +15,12 @@ using RecvFinishedCallBack = std::function<void()>;
 class client : public std::enable_shared_from_this<client>
 {
 public:
-	client(boost::asio::io_context& io_context, const boost::asio::ip::tcp::resolver::results_type& endpoints, std::string guid)
-		:io_context_(io_context), socket_(io_context), guid_(guid)
+	client(boost::asio::io_context& io_context,
+		const boost::asio::ip::tcp::resolver::results_type& endpoints,
+		std::string guid,
+		std::unique_ptr<IFileReceiver> receiver,
+		logger& log)
+		: io_context_(io_context), socket_(io_context), guid_(guid), receiver_(std::move(receiver)), log_(log)
 	{
 		do_connect(endpoints);
 	}
@@ -24,6 +29,7 @@ public:
 	{
 		if (!socket_.is_open())
 		{
+			log_.log("Client: error open socket");
 			std::cout << "client: error\n";
 			return;
 		}
@@ -39,7 +45,7 @@ public:
 			});
 	}
 
-	using FileChunkCallback = std::function<void(const std::vector<uint8_t>& chunk,
+	/*using FileChunkCallback = std::function<void(const std::vector<uint8_t>& chunk,
 		uint64_t offset,
 		uint64_t total_size,
 		const std::string& filename)>;
@@ -81,7 +87,7 @@ public:
 
 		if (recv_progress_callback_)
 			recv_progress_callback_(received, total);
-	}
+	}*/
 
 	void send_file_data(const std::vector<uint8_t> chunk, 
 		std::shared_ptr<uint64_t> sent_ptr, 
@@ -216,6 +222,7 @@ public:
 			{
 				if (ec)
 				{
+					log_.log("Client: connect error");
 					std::cout << "connect error\n";
 				}
 			});
@@ -267,6 +274,7 @@ public:
 private:
 	void do_connect(const boost::asio::ip::tcp::resolver::results_type& endpoints)
 	{
+		log_.log("Client: starting async_connect...");
 		std::cout << "client: starting async_connect...\n";
 
 		boost::asio::async_connect(socket_, endpoints,
@@ -320,7 +328,7 @@ private:
 			});
 	}
 
-	void recv_file(const message_header& header, const uint8_t* body, size_t body_size)
+	/*void recv_file(const message_header& header, const uint8_t* body, size_t body_size)
 	{
 		if (body_size < sizeof(file_chunk_header))
 		{
@@ -381,7 +389,7 @@ private:
 
 			transfers_.erase(it);
 		}
-	}
+	}*/
 
 	void do_read_body()
 	{
@@ -394,10 +402,16 @@ private:
 					{
 						//file f;
 						//f.write_file("2.exe", read_msg_.body_to_file(read_msg_.body(), read_msg_.body_size()));
-						if (setOsAndroid)
+						/*if (setOsAndroid)
 							recv_file_data(read_msg_.header_, read_msg_.body(), read_msg_.body_size());
 						else
-							recv_file(read_msg_.header_, read_msg_.body(), read_msg_.body_size());
+							recv_file(read_msg_.header_, read_msg_.body(), read_msg_.body_size());*/
+
+						receiver_->recv_file(read_msg_.header_,
+							read_msg_.body(),
+							read_msg_.body_size(),
+							recv_progress_callback_,
+							recv_finished_callback_);
 					}
 					else if (read_msg_.header_.msg_type == message_type::text)
 					{
@@ -473,7 +487,7 @@ private:
 	message read_msg_;
 	queue<message> write_msgs_;
 
-	
+	logger& log_;
 
 	std::string guid_;
 
@@ -485,4 +499,6 @@ private:
 	ProgressCallBack recv_progress_callback_;
 	RecvFinishedCallBack recv_finished_callback_;
 
+
+	std::unique_ptr<IFileReceiver> receiver_;
 };

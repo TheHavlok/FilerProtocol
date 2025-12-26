@@ -10,14 +10,6 @@ enum class message_type : uint16_t
 };
 
 #pragma pack(push, 1)
-struct file_chunk_header
-{
-	uint64_t total_size;
-	uint64_t offset;
-};
-#pragma pack(pop)
-
-#pragma pack(push, 1)
 struct message_header					// 48 bytes // 42 bytes
 {
 	uint64_t body_size;					// 8 bytes

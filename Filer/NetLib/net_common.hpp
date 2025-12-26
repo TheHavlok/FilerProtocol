@@ -18,3 +18,5 @@
 #include <cstdint>
 #include <fstream>
 #include <filesystem>
+#include <ctime>
+#include <array>
